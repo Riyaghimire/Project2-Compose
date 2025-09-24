@@ -1,0 +1,46 @@
+# docker-compose.yml
+version: "3.8"
+
+services:
+  # Docker-in-Docker service: provides a Docker daemon Jenkins can use.
+  dind:
+    image: docker:24-dind
+    privileged: true                  # DinD requires privileged mode
+    environment:
+      - DOCKER_TLS_CERTDIR=           # disable TLS certdir so TCP port 2375 is available (local lab use only)
+    volumes:
+      - docker_layer_cache:/var/lib/docker
+    networks:
+      - jenkins_net
+
+  # Jenkins controller. Built from jenkins/Dockerfile so we can add docker cli, node, plugins, and init scripts.
+  jenkins:
+    build: ./jenkins
+    image: jenkins-secure:dind
+    depends_on:
+      - dind
+    ports:
+      - "8081:8080"    # Jenkins web UI
+      - "50000:50000"  # Jenkins agent port (for inbound agents)
+    environment:
+      - DOCKER_HOST=tcp://dind:2375  # point Jenkins to the DinD daemon
+      - DOCKER_TLS_VERIFY=0          # disable TLS verification (ok for local lab use)
+    volumes:
+      - jenkins_home:/var/jenkins_home
+    networks:
+      - jenkins_net
+
+# Named volumes so data persists between container restarts
+volumes:
+  jenkins_home: {}
+  docker_layer_cache: {}
+
+# Bridge network so containers can talk to each other by name
+networks:
+  jenkins_net:
+    driver: bridge
+
+# Security Note:
+# Exposing the Docker daemon over TCP without TLS is acceptable for an isolated
+# lab, but insecure for production. For production use, enable TLS or connect
+# Jenkins to the host's docker socket with proper security controls.
