@@ -1,46 +1,68 @@
-# docker-compose.yml
 version: "3.8"
 
 services:
-  # Docker-in-Docker service: provides a Docker daemon Jenkins can use.
+  # Docker-in-Docker for Jenkins
   dind:
     image: docker:24-dind
-    privileged: true                  # DinD requires privileged mode
+    privileged: true
     environment:
-      - DOCKER_TLS_CERTDIR=           # disable TLS certdir so TCP port 2375 is available (local lab use only)
+      - DOCKER_TLS_CERTDIR=
     volumes:
       - docker_layer_cache:/var/lib/docker
     networks:
       - jenkins_net
 
-  # Jenkins controller. Built from jenkins/Dockerfile so we can add docker cli, node, plugins, and init scripts.
+  # Jenkins controller
   jenkins:
     build: ./jenkins
     image: jenkins-secure:dind
     depends_on:
       - dind
     ports:
-      - "8081:8080"    # Jenkins web UI
-      - "50000:50000"  # Jenkins agent port (for inbound agents)
+      - "8080:8080"    # Jenkins UI on host 8080
+      - "50000:50000"  # Jenkins agent port
     environment:
-      - DOCKER_HOST=tcp://dind:2375  # point Jenkins to the DinD daemon
-      - DOCKER_TLS_VERIFY=0          # disable TLS verification (ok for local lab use)
+      - DOCKER_HOST=tcp://dind:2375
+      - DOCKER_TLS_VERIFY=0
     volumes:
       - jenkins_home:/var/jenkins_home
     networks:
       - jenkins_net
 
-# Named volumes so data persists between container restarts
+  # BloodHound
+  bloodhound:
+    image: specterops/bloodhound:latest
+    depends_on:
+      - bloodhound-db
+      - bloodhound-graph-db
+    ports:
+      - "127.0.0.1:8081:8080"   # BloodHound UI on host 8081
+    networks:
+      - jenkins_net
+
+  bloodhound-db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: blood
+      POSTGRES_PASSWORD: blood
+      POSTGRES_DB: blood
+    networks:
+      - jenkins_net
+
+  bloodhound-graph-db:
+    image: neo4j:4.4
+    environment:
+      NEO4J_AUTH: neo4j/blood
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    networks:
+      - jenkins_net
+
 volumes:
   jenkins_home: {}
   docker_layer_cache: {}
 
-# Bridge network so containers can talk to each other by name
 networks:
   jenkins_net:
     driver: bridge
-
-# Security Note:
-# Exposing the Docker daemon over TCP without TLS is acceptable for an isolated
-# lab, but insecure for production. For production use, enable TLS or connect
-# Jenkins to the host's docker socket with proper security controls.
