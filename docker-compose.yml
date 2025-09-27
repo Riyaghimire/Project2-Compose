@@ -5,11 +5,12 @@ services:
   jenkins:
     build: ./jenkins
     image: jenkins-secure:latest
+    container_name: jenkins
     ports:
       - "8080:8080"    # Jenkins UI
       - "50000:50000"  # Jenkins agent port
-    environment:
-      - DOCKER_HOST=tcp://docker:2375
+    # environment:
+    #   - DOCKER_HOST=tcp://docker:2375
     volumes:
       - jenkins_home:/var/jenkins_home
       - /var/run/docker.sock:/var/run/docker.sock  # Mount host Docker socket

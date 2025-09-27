@@ -3,7 +3,7 @@ FROM jenkins/jenkins:lts-jdk11
 
 USER root
 
-# Install prerequisites and Docker CLI
+# Install prerequisites, Docker CLI, Git, and other tools
 RUN apt-get update && apt-get install -y \
     apt-transport-https \
     ca-certificates \
@@ -14,6 +14,11 @@ RUN apt-get update && apt-get install -y \
     git \
     jq \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js 20 LTS (Iron)
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && npm install -g npm
 
 # Install Jenkins plugins
 RUN jenkins-plugin-cli --plugins \
@@ -27,7 +32,7 @@ RUN jenkins-plugin-cli --plugins \
     warnings-ng \
     workflow-aggregator
 
-# Set environment variables for Docker-in-Docker (optional, can also be in docker-compose.yml)
+# Set environment variables for Docker-in-Docker
 ENV DOCKER_HOST=tcp://dind:2375
 ENV DOCKER_TLS_VERIFY=0
 
