@@ -13,6 +13,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock  # Host Docker access
     networks:
       - jenkins_net
+    user: root 
 
   bloodhound:
     image: specterops/bloodhound:latest
