@@ -3,7 +3,7 @@ FROM jenkins/jenkins:lts-jdk11
 
 USER root
 
-# Install prerequisites, Docker CLI, Git, and other tools
+# Install prerequisites: Docker CLI, Git, Node.js, jq
 RUN apt-get update && apt-get install -y \
     apt-transport-https \
     ca-certificates \
@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y \
     jq \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install Node.js 20 LTS (Iron)
+# Install Node.js 20 LTS
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs \
     && npm install -g npm
@@ -32,15 +32,11 @@ RUN jenkins-plugin-cli --plugins \
     warnings-ng \
     workflow-aggregator
 
-# Set environment variables for Docker-in-Docker
-ENV DOCKER_HOST=tcp://dind:2375
-ENV DOCKER_TLS_VERIFY=0
-
-# Create Jenkins user directories for Docker if needed
-RUN mkdir -p /var/jenkins_home/.docker && chown -R jenkins:jenkins /var/jenkins_home
+# Make sure Jenkins user can use Docker socket
+RUN groupadd -f docker \
+    && usermod -aG docker jenkins
 
 # Switch back to Jenkins user
 USER jenkins
 
-# Expose default Jenkins ports
 EXPOSE 8080 50000
